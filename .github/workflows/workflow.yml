@@ -30,13 +30,13 @@ jobs:
           brew install llvm libmagic pkg-config criterion
 
       - name: Build
-        run: make
+        run: make STRICT_CFLAGS=-Werror=implicit-function-declaration
         # macOS: 'gmake' exists only if you 'brew install make'. Homebrew
         # 'make' = gmake. OR just call 'make' on macOS+Linux (GNU make is
         # the system make on both). Only FreeBSD needs the gmake distinction.
 
       - name: Test (Asan Included)
-        run: make test-all-asan
+        run: make test-all-asan STRICT_CFLAGS=-Werror=implicit-function-declaration
 
       - name: Smoke test
         run: |
@@ -82,8 +82,8 @@ jobs:
             export ASSUME_ALWAYS_YES=yes
             sudo -E pkg update -f
             sudo -E pkg install -y gmake llvm pkgconf criterion valgrind
-            gmake
-            gmake test-all-asan CC=clang19
+            gmake STRICT_CFLAGS=-Werror=implicit-function-declaration
+            gmake test-all-asan CC=clang19 STRICT_CFLAGS=-Werror=implicit-function-declaration
 
             echo "<html><body><h1>smoke test</h1></body></html>" > index.html
 
@@ -128,7 +128,7 @@ jobs:
             #   pkg search -r libmagic   (run on local OmniOS box)
             # then add it here, e.g. pkg install file/...
           run: |
-            gmake CC=gcc
+            gmake CC=gcc STRICT_CFLAGS=-Werror=implicit-function-declaration
             echo "<html><body><h1>smoke test</h1></body></html>" > index.html
 
             nohup ./simple_server -v -p 8080 </dev/null > /tmp/server.log 2>&1 &

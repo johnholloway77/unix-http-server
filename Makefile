@@ -24,6 +24,8 @@ CC ?= clang
 
 # ─── Base flags ────────────────────────────────────────────────────────
 CFLAGS  ?= -Wall -Wextra -std=c11
+STRICT_CFLAGS ?=
+CFLAGS += $(STRICT_CFLAGS)
 LIBS    =
 LDFLAGS =
 
@@ -194,6 +196,7 @@ CRITERION_PREFIX ?= /usr/local
 TEST_CFLAGS  = -std=c11 -Wall -Wextra  -g \
                -I requests -I $(CRITERION_PREFIX)/include \
                #-DDEBUG
+TEST_CFLAGS += $(STRICT_CFLAGS)
 TEST_LDFLAGS = -L $(CRITERION_PREFIX)/lib -lcriterion
 
 ifeq ($(UNAME_S),Linux)
