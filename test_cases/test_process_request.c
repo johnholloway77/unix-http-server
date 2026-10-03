@@ -33,8 +33,18 @@ client_with_tokens(const char *method, const char *version)
 	c.http_method = NUM_HTTP_METHOD;
 	c.http_version = NUM_HTTP_VERSION;
 	c.headers.request_fields.method = slice_lit(method);
+	c.headers.request_fields.uri = slice_lit("/");
 	c.headers.request_fields.version = slice_lit(version);
 
+	return c;
+}
+
+static Client
+client_with_uri(const char *method, const char *version, const char *uri)
+{
+	Client c = client_with_tokens(method, version);
+
+	c.headers.request_fields.uri = slice_lit(uri);
 	return c;
 }
 
@@ -209,7 +219,78 @@ Test(process_request_version_invalid, version_with_trailing_junk_is_malformed)
 }
 
 /* ================================================================== *
- *  GROUP 3 -- valid Content-Length parsing for body methods
+ *  GROUP 3 -- URI traversal detection
+ * ================================================================== */
+
+Test(process_request_traversal, leading_dot_dot_segment)
+{
+	Client c = client_with_uri("GET", "HTTP/1.1", "/../etc/passwd");
+
+	cr_assert_eq(process_request(&c), PRO_REQ_TRAVERSE_FAIL);
+	cr_assert_eq(c.resp_val, RESP_403);
+}
+
+Test(process_request_traversal, interior_dot_dot_segment)
+{
+	Client c = client_with_uri("GET", "HTTP/1.1", "/dir/../../secret");
+
+	cr_assert_eq(process_request(&c), PRO_REQ_TRAVERSE_FAIL);
+	cr_assert_eq(c.resp_val, RESP_403);
+}
+
+Test(process_request_traversal, trailing_dot_dot_segment)
+{
+	Client c = client_with_uri("GET", "HTTP/1.1", "/dir/..");
+
+	cr_assert_eq(process_request(&c), PRO_REQ_TRAVERSE_FAIL);
+	cr_assert_eq(c.resp_val, RESP_403);
+}
+
+Test(process_request_traversal, later_dot_dot_segment_after_safe_dots)
+{
+	Client c = client_with_uri("GET", "HTTP/1.1", "/my..file/../secret");
+
+	cr_assert_eq(process_request(&c), PRO_REQ_TRAVERSE_FAIL);
+	cr_assert_eq(c.resp_val, RESP_403);
+}
+
+Test(process_request_traversal_allowed, dots_inside_filename)
+{
+	Client c = client_with_uri("GET", "HTTP/1.1", "/my..file.txt");
+
+	cr_assert_eq(process_request(&c), PRO_REQ_SUCCESS);
+}
+
+Test(process_request_traversal_allowed, dot_dot_prefix_inside_segment)
+{
+	Client c = client_with_uri("GET", "HTTP/1.1", "/dir/..file");
+
+	cr_assert_eq(process_request(&c), PRO_REQ_SUCCESS);
+}
+
+Test(process_request_traversal_allowed, longer_dot_run_inside_segment)
+{
+	Client c = client_with_uri("GET", "HTTP/1.1", "/dir.../file");
+
+	cr_assert_eq(process_request(&c), PRO_REQ_SUCCESS);
+}
+
+Test(process_request_traversal_allowed, dot_dot_suffix_inside_segment)
+{
+	Client c = client_with_uri("GET", "HTTP/1.1", "/my../file");
+
+	cr_assert_eq(process_request(&c), PRO_REQ_SUCCESS);
+}
+
+Test(process_request_traversal_allowed, filename_ending_with_dot_dot)
+{
+	Client c = client_with_uri("GET", "HTTP/1.1", "/file..");
+
+	cr_assert_eq(process_request(&c), PRO_REQ_SUCCESS);
+}
+
+/* ================================================================== *
+ *  GROUP 4 -- valid Content-Length parsing for body methods
  * ================================================================== */
 
 Test(process_request_content_length, post_zero)
@@ -271,7 +352,7 @@ Test(process_request_content_length, get_does_not_require_content_length)
 }
 
 /* ================================================================== *
- *  GROUP 4 -- invalid Content-Length values reject the request
+ *  GROUP 5 -- invalid Content-Length values reject the request
  * ================================================================== */
 
 Test(process_request_content_length_invalid, post_missing_content_length)

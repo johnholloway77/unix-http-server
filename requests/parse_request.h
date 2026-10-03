@@ -21,6 +21,7 @@ typedef enum Process_request_status {
     PRO_REQ_METHOD_FAIL,
     PRO_REQ_VERSION_FAIL,
     PRO_REQ_CLENGTH_FAIL,
+    PRO_REQ_TRAVERSE_FAIL,
     PRO_REQ_ENUM_COUNT
 } Process_request_status;
 

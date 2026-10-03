@@ -1,6 +1,7 @@
 #include "./parse_request.h"
 #include "headers.h"
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 
@@ -101,7 +102,38 @@ version_from_token(Slice version){
 static int
 path_has_traversal(Slice path)
 {
-	return strnstr(path.start, "../", path.length) ? 1 : 0;
+    char* traverse = NULL;
+    const char* end = path.start + path.length;
+
+	traverse = strnstr(path.start, "..", path.length);
+
+      while (traverse){
+
+        if (traverse == path.start){
+            if (traverse + 2 == end){
+                return 1;
+            }
+
+            if (*(traverse + 2) == '/'){
+                return 1;
+            }
+        } else if (traverse + 2 == end){
+            if (*(traverse -1) == '/'){
+                return 1;
+            }
+        } else {
+            if (*(traverse -1 ) == '/'){
+                if (*(traverse + 2) == '/'){
+                    return 1;
+                }
+            }
+        }
+
+    	traverse = strnstr(traverse + 2, "..", path.length);
+    }
+
+
+	return 0;
 }
 
 static size_t slice_to_size_t(Slice s, const char **endptr){
@@ -177,9 +209,15 @@ Process_request_status process_request(Client *client) {
         return PRO_REQ_VERSION_FAIL;
     }
 
+
     if (!support_http_version(c->http_version)){
         c->resp_val = RESP_505;
         return PRO_REQ_VERSION_FAIL;
+    }
+
+    if (path_has_traversal(c->headers.request_fields.uri)){
+        c->resp_val = RESP_403;
+        return PRO_REQ_TRAVERSE_FAIL;
     }
 
     if (c->http_method == HTTP_POST || c->http_method == HTTP_PUT){
