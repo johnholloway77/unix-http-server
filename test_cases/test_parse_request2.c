@@ -32,8 +32,10 @@ static Client
 parsed_headers_for(const char *buf, size_t len)
 {
 	Client c = client_for(buf, len);
+	Parse_request_status status;
 
-	parse_header_2(&c);
+	status = parse_header_2(&c);
+	cr_assert_eq(status, PAR_REQ_SUCCESS);
 	return c;
 }
 
@@ -175,8 +177,13 @@ Test(parse2_malformed, four_tokens)
 Test(parse2_malformed, no_crlf_in_header_slice_leaves_fields_empty)
 {
 	const char req[] = "GET / HTTP/1.1";
-	Client c = PARSE_HEADERS(req);
+	Client c = client_for(req, sizeof(req) - 1);
+	Parse_request_status status;
 
+	status = parse_header_2(&c);
+
+	cr_assert_eq(status, PAR_REQ_BAD_REQUEST);
+	cr_assert_eq(c.resp_val, RESP_400);
 	cr_assert_null(c.headers.request_line.start);
 	cr_assert_eq(c.headers.request_line.length, 0);
 	cr_assert_null(c.headers.request_fields.method.start);
@@ -293,9 +300,12 @@ Test(parse2_bounds, no_read_past_len)
 {
 	const char full[] = "GET / HTTP/1.1\r\n\r\nGARBAGE";
 	Client c = client_for(full, 10);
+	Parse_request_status status;
 
-	parse_header_2(&c);
+	status = parse_header_2(&c);
 
+	cr_assert_eq(status, PAR_REQ_BAD_REQUEST);
+	cr_assert_eq(c.resp_val, RESP_400);
 	cr_assert_null(c.headers.request_line.start);
 	cr_assert_eq(c.headers.request_line.length, 0);
 }
@@ -323,7 +333,7 @@ Test(parse2_bounds, path_just_under_path_max_sliced_without_copy)
 	    " HTTP/1.0\r\n\r\n");
 	c = client_for(buf, (size_t)(after + tail));
 
-	parse_header_2(&c);
+	cr_assert_eq(parse_header_2(&c), PAR_REQ_SUCCESS);
 
 	assert_slice_eq(c.headers.request_fields.uri, buf + 4,
 	    (size_t)(1 + room));
@@ -344,7 +354,7 @@ Test(parse2_bounds, overlong_path_is_still_bounded_by_input_length)
 	    " HTTP/1.0\r\n\r\n");
 	c = client_for(buf, (size_t)(after + tail));
 
-	parse_header_2(&c);
+	cr_assert_eq(parse_header_2(&c), PAR_REQ_SUCCESS);
 
 	assert_slice_eq(c.headers.request_fields.uri, buf + 4,
 	    (size_t)(1 + huge));
@@ -461,7 +471,7 @@ Test(parse2_proto, version_token_absurdly_long)
 	tail = snprintf(buf + after, sizeof buf - (size_t)after, "\r\n\r\n");
 	c = client_for(buf, (size_t)(after + tail));
 
-	parse_header_2(&c);
+	cr_assert_eq(parse_header_2(&c), PAR_REQ_SUCCESS);
 
 	assert_slice_eq(c.headers.request_fields.version, buf + 6,
 	    (size_t)(strlen("HTTP/1.") + zeros));
