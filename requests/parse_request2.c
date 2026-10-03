@@ -1,4 +1,8 @@
+#ifdef __linux__
+#include <bsd/string.h>
+#else
 #include <string.h>
+#endif
 
 #include "../client_conn/connections.h"
 #include "../requests/headers.h"

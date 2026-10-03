@@ -1,9 +1,14 @@
 #include "./parse_request.h"
 #include "headers.h"
 #include <stddef.h>
-#include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+
+#ifdef __linux__
+#include <bsd/string.h>
+#else
+#include <string.h>
+#endif
 
 static int supported_http_method(enum http_method method){
 
