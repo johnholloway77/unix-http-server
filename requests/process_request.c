@@ -156,30 +156,30 @@ Process_request_status process_request(Client *client) {
     Client *c = client;
 
     if (c == NULL){
-        return PR_NULL_CLIENT;
+        return PRO_REQ_NULL_CLIENT;
     }
 
     c->http_method = method_from_token(c->headers.request_fields.method);
 
     if (c->http_method == HTTP_METHOD_UNKNOWN){
         c->resp_val = RESP_400;
-        return PR_METHOD_FAIL;
+        return PRO_REQ_METHOD_FAIL;
     }
 
     if (!supported_http_method(c->http_method)){
         c->resp_val = RESP_501;
-        return PR_METHOD_FAIL;
+        return PRO_REQ_METHOD_FAIL;
     }
 
     c->http_version = version_from_token(c->headers.request_fields.version);
     if (c->http_version == HTTP_VERSION_UNKNOWN){
         c->resp_val = RESP_400;
-        return PR_VERSION_FAIL;
+        return PRO_REQ_VERSION_FAIL;
     }
 
     if (!support_http_version(c->http_version)){
         c->resp_val = RESP_505;
-        return PR_VERSION_FAIL;
+        return PRO_REQ_VERSION_FAIL;
     }
 
     if (c->http_method == HTTP_POST || c->http_method == HTTP_PUT){
@@ -198,7 +198,7 @@ Process_request_status process_request(Client *client) {
             fprintf(stderr, "content length string is all whitespace\n");
             c->content_length = 0;
             c->resp_val = RESP_400;
-            return PR_CLENGTH_FAIL;
+            return PRO_REQ_CLENGTH_FAIL;
         }else if (*s.start != '-'){
             c->content_length = slice_to_size_t(s, &endptr);
 
@@ -207,20 +207,20 @@ Process_request_status process_request(Client *client) {
                 fprintf(stderr, "invalid content-length string.\n");
 
                 c->resp_val = RESP_400;
-                return PR_CLENGTH_FAIL;
+                return PRO_REQ_CLENGTH_FAIL;
             }
         } else {
             fprintf(stderr, "content length is a negative number\n");
             c->content_length = 0;
             c->resp_val = RESP_400;
-            return PR_CLENGTH_FAIL;
+            return PRO_REQ_CLENGTH_FAIL;
         }
 
         } else {
             fprintf(stderr, "content length slice is null\n");
             c->content_length = 0;
             c->resp_val = RESP_400;
-            return PR_CLENGTH_FAIL;
+            return PRO_REQ_CLENGTH_FAIL;
         }
     }
 

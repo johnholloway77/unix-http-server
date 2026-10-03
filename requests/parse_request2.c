@@ -1,3 +1,4 @@
+#include "parse_request.h"
 #ifdef __linux__
 #include <bsd/string.h>
 #else
@@ -88,9 +89,6 @@ int parse_request_line(Client *client){
 
     request_fields->method.length = iterator - request_fields->method.start;
 
-    printf("method: ");
-    fwrite(request_fields->method.start, 1, request_fields->method.length, stdout)    ;
-    puts("");
 
     while ((*iterator == ' ' || *iterator == '\t') && iterator != line_end){
         iterator++;
@@ -131,16 +129,24 @@ int parse_request_line(Client *client){
 }
 
 
-void parse_header_2(Client *client){
+Parse_request_status parse_header_2(Client *client){
 
     Client *c = client;
+
+    if (NULL == c){
+        // server fuckup. Should never get here
+        c->resp_val = RESP_500;
+        return PAR_REQ_NULL_CLIENT;
+    }
+
+    if (NULL == c->header_slice.start || 0 == c->header_slice.length){
+        c->resp_val = RESP_400;
+        return PAR_REQ_NULL_REQUEST;
+    }
 
     const char *header_end = c->header_slice.start + c->header_slice.length;
     const char *iterator = c->header_slice.start;
     const char *line_end;
-
-    // for testing only:
-    // fwrite(c->header_slice.start, 1, c->header_slice.length, stdout);
 
     line_end = strnstr(iterator, "\r\n", header_end - iterator);
 
@@ -215,6 +221,12 @@ void parse_header_2(Client *client){
 
             iterator = line_end + 2;
         }
+    } else {
+        // no "\r\n" at end of line
+        // malformed!!
+        c->resp_val = RESP_400;
+        return PAR_REQ_BAD_REQUEST;
     }
 
+    return PAR_REQ_SUCCESS;
 }
